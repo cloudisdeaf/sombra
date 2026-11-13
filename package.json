@@ -1,0 +1,25 @@
+{
+  "name": "sombra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mensajería privada cifrada de extremo a extremo entre amigos, por Tor.",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "app": "node launcher/main.js",
+    "test": "node --test test/",
+    "build": "node build/build.mjs"
+  },
+  "sombra": {
+    "downloadUrl": "https://github.com/cloudisdeaf/sombra/releases/latest"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "resedit": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=26"
+  }
+}

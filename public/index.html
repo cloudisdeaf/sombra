@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Defence in depth: mirrors the server CSP (frame-ancestors is header-only). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#17212b">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="description" content="Sombra: mensajería cifrada de extremo a extremo, anónima y sin rastro.">
+  <title>Sombra</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/ui/app.js"></script>
+</head>
+<body>
+  <div id="app" class="app">
+    <div class="boot" role="status" aria-live="polite">
+      <span class="boot-spinner" aria-hidden="true"></span>
+      <span>Cargando Sombra…</span>
+    </div>
+  </div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <noscript>
+    <p class="noscript">Sombra necesita JavaScript: todo el cifrado se hace en tu navegador.</p>
+  </noscript>
+</body>
+</html>

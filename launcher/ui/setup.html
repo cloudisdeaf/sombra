@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Sombra</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/_local/setup.css">
+  <script type="module" src="/_local/setup.js"></script>
+</head>
+<body>
+  <main class="wrap">
+    <header class="brand">
+      <img src="/favicon.svg" alt="" width="28" height="28">
+      <span>Sombra</span>
+    </header>
+
+    <!-- 1. Elegir red -->
+    <section id="choose" hidden>
+      <h1>¿Cómo quieres empezar?</h1>
+      <p class="lead">Sombra conecta a un grupo de amigos a través de Tor. Una persona crea la red; el resto se une con su dirección.</p>
+
+      <div class="card">
+        <h2>Unirme a una red</h2>
+        <p>Pega la dirección <code>.onion</code> que te ha pasado tu amigo.</p>
+        <form id="joinForm" class="row" autocomplete="off">
+          <input id="onion" type="text" spellcheck="false" placeholder="xxxxxxxx….onion" aria-label="Dirección de la red">
+          <button type="submit" class="primary">Unirme</button>
+        </form>
+        <p id="joinErr" class="err" hidden></p>
+      </div>
+
+      <div class="card">
+        <h2>Crear mi red</h2>
+        <p>Tu ordenador será el punto de encuentro. Los mensajes llegan mientras esté encendido y con Sombra abierto.</p>
+        <button id="hostBtn" type="button">Crear mi red</button>
+      </div>
+    </section>
+
+    <!-- 2. Conectando -->
+    <section id="connecting" hidden>
+      <h1 id="connTitle">Conectando por Tor…</h1>
+      <div class="bar"><div id="barFill"></div></div>
+      <p class="muted" id="connText">La primera vez puede tardar un minuto.</p>
+      <p id="torErr" class="err" hidden></p>
+    </section>
+
+    <!-- 3. Mi red (anfitrión) / estado -->
+    <section id="ready" hidden>
+      <h1 id="readyTitle">Listo</h1>
+      <div id="hostBox" class="card" hidden>
+        <h2>Tu dirección</h2>
+        <p class="muted">Compártela solo con tus amigos. Quien la tenga puede crear una cuenta en tu red.</p>
+        <p class="addr" id="addr">Preparando dirección…</p>
+        <div class="row">
+          <button id="copyInvite" type="button" disabled>Copiar invitación</button>
+          <button id="copyAddr" type="button" disabled>Copiar dirección</button>
+        </div>
+        <p class="muted small" id="hostNote">Tus amigos podrán conectar unos segundos después de que Tor termine de arrancar.</p>
+      </div>
+      <div id="joinBox" class="card" hidden>
+        <h2>Conectado a</h2>
+        <p class="addr" id="joinAddr"></p>
+      </div>
+      <a class="primary big" href="/">Abrir Sombra</a>
+    </section>
+
+    <footer class="foot">
+      <button id="resetBtn" type="button" class="link" hidden>Cambiar de red</button>
+      <button id="quitBtn" type="button" class="link">Cerrar Sombra</button>
+    </footer>
+    <p id="toast" class="toast" role="status" hidden></p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Sombra · guía rápida</title>
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --bg: #f7f7f5; --fg: #1d2127; --muted: #6b7280; --line: #e4e4e0; --accent: #3f74ad; --btn: #3f74ad; --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0e1621; --fg: #e6eaee; --muted: #8394a6; --line: #1f2b38; --accent: #6ab2f2; --btn: #2f6399; --card: #131d29; }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; color: var(--fg); background: var(--bg);
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 560px; margin: 0 auto; padding: 72px 22px 56px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  header img { width: 30px; height: 30px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: .01em; }
+  .tag { color: var(--muted); margin: 0 0 44px; }
+  ol { list-style: none; counter-reset: s; padding: 0; margin: 0 0 40px; }
+  ol li { counter-increment: s; position: relative; padding: 0 0 26px 44px; }
+  ol li::before {
+    content: counter(s); position: absolute; left: 0; top: 1px;
+    width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line);
+    font-size: 13px; line-height: 24px; text-align: center; color: var(--muted);
+  }
+  ol li b { font-weight: 600; }
+  ol li p { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
+  .btn {
+    display: inline-block; margin: 2px 0 6px; padding: 9px 16px; border-radius: 8px;
+    background: var(--btn); color: #fff; text-decoration: none; font-size: 15px;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  code { font: 13.5px ui-monospace, Consolas, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  .note { border-top: 1px solid var(--line); padding-top: 22px; color: var(--muted); font-size: 14.5px; }
+  .note p { margin: 0 0 10px; }
+  .note b { color: var(--fg); font-weight: 600; }
+  footer { margin-top: 40px; font-size: 13px; color: var(--muted); }
+  footer a { color: var(--muted); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.png" alt="">
+    <h1>Sombra</h1>
+  </header>
+  <p class="tag">Mensajes privados entre amigos. Cifrados de extremo a extremo, por Tor.</p>
+
+  <ol>
+    <li>
+      <b>Descarga e instala</b>
+      <p>Abre <code>Sombra-Setup.exe</code>. Se instala solo y se abre en tu navegador.</p>
+      <a class="btn" href="https://github.com/cloudisdeaf/sombra/releases/latest">Descargar para Windows</a>
+      <p>Si Windows avisa, pulsa <i>Más información → Ejecutar de todas formas</i>.</p>
+    </li>
+    <li>
+      <b>Únete a la red</b>
+      <p>Elige <i>Unirme a una red</i> y pega la dirección <code>….onion</code> que te han pasado. La primera conexión tarda un minuto.</p>
+    </li>
+    <li>
+      <b>Crea tu usuario</b>
+      <p>Solo un nombre y una frase de acceso. Sin teléfono ni correo. La frase nunca sale de tu ordenador.</p>
+    </li>
+    <li>
+      <b>Escribe</b>
+      <p>Busca a tu amigo por su <code>@usuario</code>. La primera vez, comparad el número de seguridad en persona o por llamada.</p>
+    </li>
+  </ol>
+
+  <div class="note">
+    <p><b>¿Quieres crear tú la red?</b> Elige <i>Crear mi red</i> y comparte la dirección con <i>Copiar invitación</i>. Mientras tu ordenador esté encendido con Sombra abierto, los mensajes llegan.</p>
+    <p><b>Nadie puede leer tus mensajes</b>, ni siquiera quien aloja la red: solo ve sobres cerrados, sin remitente.</p>
+    <p><b>Haz una copia de seguridad</b> en Ajustes. Si olvidas la frase de acceso, la cuenta no se puede recuperar.</p>
+  </div>
+
+  <footer>
+    Código abierto · <a href="https://github.com/cloudisdeaf/sombra">GitHub</a> · <a href="https://github.com/cloudisdeaf/sombra/blob/main/SECURITY.md">Seguridad</a>
+  </footer>
+</main>
+</body>
+</html>

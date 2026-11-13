@@ -1,0 +1,14 @@
+{
+  "name": "Sombra",
+  "short_name": "Sombra",
+  "description": "Mensajería cifrada de extremo a extremo, anónima y sin rastro.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0e1621",
+  "theme_color": "#17212b",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
