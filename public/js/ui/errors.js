@@ -16,6 +16,7 @@ const MESSAGES = [
   ['payload_too_large', 'El mensaje es demasiado grande para el servidor.'],
   ['busy', 'El servidor está ocupado. Inténtalo de nuevo en unos segundos.'],
   ['forbidden', 'El servidor rechazó la solicitud.'],
+  ['bad_login', 'Usuario o frase de acceso incorrectos.'],
   ['bad passphrase', 'Frase de acceso incorrecta.'],
   ['bad_passphrase', 'Frase de acceso incorrecta.'],
   ['user_not_found', 'No existe ningún usuario con ese nombre.'],

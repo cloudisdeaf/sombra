@@ -279,6 +279,16 @@ function buildImportForm(app) {
 
 /** Unlock screen for a device that already holds an encrypted vault. */
 export function renderUnlock(app, { reason = '' } = {}) {
+  // The username is stored inside the encrypted vault, so the device cannot show it before
+  // unlocking. Asking for it works like a normal sign-in (and lets a password manager fill
+  // both fields); it is checked against the account once the passphrase has opened it.
+  const user = field({
+    label: 'Usuario',
+    name: 'username',
+    placeholder: '@tu_usuario',
+    maxlength: 33,
+    autocomplete: 'username',
+  });
   const pass = passwordField({ label: 'Frase de acceso', name: 'passphrase', autocomplete: 'current-password' });
   const submit = h('button', { type: 'submit', class: 'btn btn-primary btn-block' }, icon('lock'), h('span', null, 'Desbloquear'));
   const formError = h('p', { class: 'form-error', role: 'alert', hidden: true });
@@ -286,20 +296,28 @@ export function renderUnlock(app, { reason = '' } = {}) {
   const wipeBtn = h('button', { type: 'button', class: 'link-btn danger' }, 'Borrar todos los datos de este dispositivo');
   const form = h('form', { class: 'form', novalidate: true },
     reason ? h('p', { class: 'note' }, icon('info'), h('span', null, reason)) : null,
-    pass.wrap, formError, submit, busyText);
+    user.wrap, pass.wrap, formError, submit, busyText);
 
   let failures = 0;
   on(form, 'submit', async (e) => {
     e.preventDefault();
     formError.hidden = true;
     const passphrase = pass.input.value;
+    const typedUser = normalizeUsername(user.input.value);
+    if (!typedUser) { user.input.focus(); return; }
     if (!passphrase) { pass.input.focus(); return; }
     submit.disabled = true;
+    user.input.disabled = true;
     pass.input.disabled = true;
     busyText.hidden = false;
     submit.classList.add('busy');
     try {
       await app.client.unlock(passphrase);
+      if (app.client.username !== typedUser) {
+        // Opened with the right passphrase but another name: refuse, and do not say which was wrong.
+        app.client.lock();
+        throw new Error('bad_login');
+      }
       pass.input.value = '';
       await app.enterMain();
     } catch (err) {
@@ -309,6 +327,7 @@ export function renderUnlock(app, { reason = '' } = {}) {
       formError.textContent = errorText(err, 'No se pudo desbloquear.');
       formError.hidden = false;
       submit.disabled = false;
+      user.input.disabled = false;
       pass.input.disabled = false;
       busyText.hidden = true;
       submit.classList.remove('busy');
@@ -335,5 +354,5 @@ export function renderUnlock(app, { reason = '' } = {}) {
     h('h2', { class: 'welcome-title' }, 'Desbloquear Sombra'),
     form,
     h('div', { class: 'welcome-links' }, wipeBtn)));
-  pass.input.focus();
+  user.input.focus();
 }

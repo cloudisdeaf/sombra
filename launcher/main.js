@@ -22,7 +22,15 @@ const DOWNLOAD_URL = BOOT ? BOOT.downloadUrl : 'https://github.com/';
 const IS_WIN = process.platform === 'win32';
 const args = new Set(process.argv.slice(2));
 
-const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+// SOMBRA_SANDBOX=<dir> redirects everything the installer touches (program folder, data,
+// shortcuts, registry key) and answers dialogs automatically, so the install / update /
+// uninstall flow can be tested without touching the real installation.
+const SANDBOX = process.env.SOMBRA_SANDBOX ? path.resolve(process.env.SOMBRA_SANDBOX) : null;
+const PORT = Number(process.env.SOMBRA_PORT) || DEFAULT_PORT;
+
+const localAppData = SANDBOX
+  ? path.join(SANDBOX, 'local')
+  : (process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'));
 const HOME = process.env.SOMBRA_HOME || path.join(localAppData, 'Sombra');
 const INSTALL_DIR = path.join(localAppData, 'Programs', 'Sombra');
 const INSTALLED_EXE = path.join(INSTALL_DIR, 'Sombra.exe');
@@ -43,6 +51,13 @@ process.on('unhandledRejection', (e) => { logError(e); });
 
 /** Native Windows message box (PowerShell). Text goes through env vars: no injection. */
 function messageBox(text, { buttons = 'OK', icon = 'Information' } = {}) {
+  if (SANDBOX) {
+    try {
+      fs.mkdirSync(SANDBOX, { recursive: true });
+      fs.appendFileSync(path.join(SANDBOX, 'messages.log'), `[${buttons}] ${text}\n`);
+    } catch { /* ignore */ }
+    return buttons === 'YesNo' ? 'Yes' : 'OK';
+  }
   if (!IS_WIN) return 'OK';
   const script = 'Add-Type -AssemblyName System.Windows.Forms;' +
     '[System.Windows.Forms.MessageBox]::Show($env:SOMBRA_MSG, "Sombra", $env:SOMBRA_BTN, $env:SOMBRA_ICON)';
@@ -80,24 +95,69 @@ function ps(script, env = {}) {
 }
 
 function shortcutPaths() {
-  const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
-  const desktop = (ps('[Environment]::GetFolderPath("Desktop")').stdout || '').trim() || path.join(os.homedir(), 'Desktop');
+  const appData = SANDBOX ? path.join(SANDBOX, 'roaming') : (process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'));
+  const desktop = SANDBOX
+    ? path.join(SANDBOX, 'desktop')
+    : ((ps('[Environment]::GetFolderPath("Desktop")').stdout || '').trim() || path.join(os.homedir(), 'Desktop'));
   return [
     path.join(appData, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Sombra.lnk'),
     path.join(desktop, 'Sombra.lnk'),
   ];
 }
 
-const UNINSTALL_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Sombra';
+const UNINSTALL_KEY = SANDBOX
+  ? 'HKCU\\Software\\SombraSandbox\\Uninstall'
+  : 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Sombra';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Version recorded by the previous installation, or null (first install). */
+function installedVersion() {
+  const r = spawnSync('reg.exe', ['query', UNINSTALL_KEY, '/v', 'DisplayVersion'], { windowsHide: true, encoding: 'utf8' });
+  const m = /DisplayVersion\s+REG_SZ\s+(\S+)/.exec(String(r.stdout || ''));
+  return r.status === 0 && m ? m[1] : null;
+}
+
+/** Ask a running Sombra to quit and wait until it has stopped answering. */
+async function quitRunning(port) {
+  await new Promise((resolve) => {
+    const r = http.request({ host: '127.0.0.1', port, path: '/_local/quit', method: 'POST', headers: { host: `127.0.0.1:${port}`, 'content-type': 'application/json' } }, () => resolve());
+    r.on('error', resolve);
+    r.end('{}');
+  });
+  for (let i = 0; i < 40 && await ping(port); i++) await sleep(250);
+  await sleep(500); // let the process release its files
+  return !(await ping(port));
+}
 
 async function install() {
-  if (await ping(DEFAULT_PORT)) {
-    messageBox('Sombra ya está abierto. Ciérralo desde su panel («Cerrar Sombra») y vuelve a ejecutar el instalador.');
-    return;
+  const previous = installedVersion();
+  if (await ping(PORT)) {
+    const ok = messageBox(
+      `Sombra está abierto${previous ? ` (versión ${previous})` : ''}. Para instalar la versión ${VERSION} hay que cerrarlo, y se abrirá de nuevo al terminar.\n\n` +
+      'Si tu ordenador hace de anfitrión de una red, tus amigos se desconectarán unos segundos. Tus cuentas, chats y red se conservan.\n\n¿Continuar?',
+      { buttons: 'YesNo', icon: 'Question' }) === 'Yes';
+    if (!ok) return;
+    if (!(await quitRunning(PORT))) {
+      messageBox('No se pudo cerrar la versión abierta de Sombra. Ciérrala desde su panel («Cerrar Sombra») y vuelve a ejecutar el instalador.', { icon: 'Error' });
+      return;
+    }
   }
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
-  fs.copyFileSync(process.execPath, INSTALLED_EXE);
+  // Replace the old program. Windows may keep the old exe locked for a moment after it exits.
+  let copied = false;
+  for (let i = 0; i < 20 && !copied; i++) {
+    try { fs.copyFileSync(process.execPath, INSTALLED_EXE); copied = true; } catch (err) {
+      if (!err || !['EBUSY', 'EPERM', 'EACCES'].includes(err.code)) throw err;
+      await sleep(500);
+    }
+  }
+  if (!copied) {
+    messageBox('No se pudo reemplazar la versión anterior de Sombra: algún programa la tiene en uso. Cierra Sombra por completo y vuelve a ejecutar el instalador.', { icon: 'Error' });
+    return;
+  }
   for (const lnk of shortcutPaths()) {
+    fs.mkdirSync(path.dirname(lnk), { recursive: true });
     ps('$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:SOMBRA_LNK);$s.TargetPath=$env:SOMBRA_EXE;$s.WorkingDirectory=$env:SOMBRA_DIR;$s.IconLocation=$env:SOMBRA_EXE+",0";$s.Description="Sombra";$s.Save()',
       { SOMBRA_LNK: lnk, SOMBRA_EXE: INSTALLED_EXE, SOMBRA_DIR: INSTALL_DIR });
   }
@@ -110,19 +170,15 @@ async function install() {
   reg('UninstallString', 'REG_SZ', `"${INSTALLED_EXE}" --uninstall`);
   reg('NoModify', 'REG_DWORD', '1');
   reg('NoRepair', 'REG_DWORD', '1');
-  spawn(INSTALLED_EXE, [], { detached: true, stdio: 'ignore', cwd: INSTALL_DIR }).unref();
+  if (previous && previous !== VERSION) {
+    messageBox(`Sombra se ha actualizado de la versión ${previous} a la ${VERSION}. La versión anterior se ha desinstalado; tus cuentas y chats siguen donde estaban.`);
+  }
+  if (!SANDBOX) spawn(INSTALLED_EXE, [], { detached: true, stdio: 'ignore', cwd: INSTALL_DIR }).unref();
 }
 
 async function uninstall() {
   if (messageBox('¿Desinstalar Sombra de este ordenador?', { buttons: 'YesNo', icon: 'Question' }) !== 'Yes') return;
-  if (await ping(DEFAULT_PORT)) {
-    await new Promise((resolve) => {
-      const r = http.request({ host: '127.0.0.1', port: DEFAULT_PORT, path: '/_local/quit', method: 'POST', headers: { host: `127.0.0.1:${DEFAULT_PORT}`, 'content-type': 'application/json' } }, () => resolve());
-      r.on('error', resolve);
-      r.end('{}');
-    });
-    await new Promise((r) => setTimeout(r, 1500));
-  }
+  if (await ping(PORT)) await quitRunning(PORT);
   for (const lnk of shortcutPaths()) { try { fs.unlinkSync(lnk); } catch { /* none */ } }
   spawnSync('reg.exe', ['delete', UNINSTALL_KEY, '/f'], { windowsHide: true });
   const wipe = messageBox(
@@ -157,7 +213,7 @@ async function main() {
     await install();
     return;
   }
-  const port = Number(process.env.SOMBRA_PORT) || DEFAULT_PORT;
+  const port = PORT;
   const url = `http://127.0.0.1:${port}/`;
   if (await ping(port)) { // already running: just show it
     if (!args.has('--no-browser')) openBrowser(url);

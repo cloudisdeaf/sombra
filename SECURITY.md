@@ -215,7 +215,13 @@ liga cuentas entre sí, no a personas.
   *DNS rebinding*, y Origin y `Sec-Fetch-Site` para evitar CSRF. No protege frente a otros
   programas maliciosos del mismo ordenador, que quedan fuera del modelo de amenazas.
 - **Tu cuenta vive en el navegador**, ligada a `http://127.0.0.1:47321`. Si cambias de
-  navegador o borras sus datos, restaura tu copia de seguridad.
+  navegador o borras sus datos, restaura tu copia de seguridad. Al entrar se piden el
+  **@usuario** y la frase de acceso; el usuario se comprueba contra la cuenta una vez abierta
+  con la frase (un nombre equivocado da el mismo mensaje genérico). No es un inicio de sesión
+  desde cualquier navegador: sin la copia de seguridad, las claves no existen fuera de este
+  dispositivo.
+- **Actualizar** ejecutando el instalador nuevo cierra la versión abierta, la reemplaza y
+  conserva los datos (cuentas en el navegador, red y clave onion en `%LOCALAPPDATA%Sombra`).
 - Las pruebas automáticas cubren el lanzador con un Tor simulado (SOCKS5 falso). Tor
   real (`tor.exe`) se ejecuta tal cual lo publica The Tor Project.
 

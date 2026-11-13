@@ -38,9 +38,12 @@
    y se abre en tu navegador. Si Windows avisa («Windows protegió su PC»), pulsa
    **Más información → Ejecutar de todas formas**: el programa no está firmado con un
    certificado de pago.
+   **Para actualizar** basta con ejecutar el nuevo `Sombra-Setup.exe` encima: si Sombra está abierto lo cierra
+   (pidiéndote permiso), reemplaza la versión anterior y vuelve a abrirse. Tus cuentas, chats y red se conservan.
 2. Elige **Crear mi red** o **Unirme a una red**, y pega la dirección y el código si te los han pasado.
    Si eres el anfitrión puedes **cerrar el registro** cuando ya estéis todos: nadie nuevo podrá entrar, ni con código.
-3. Crea tu usuario y escribe a tus amigos por su `@usuario`.
+3. Crea tu usuario y escribe a tus amigos por su `@usuario`. Al volver a entrar, escribe tu
+   **@usuario** y tu frase de acceso.
 4. La primera vez que habléis, comparad el **número de seguridad**: en persona o por una
    llamada. Si coincide, nadie puede estar en medio.
 
