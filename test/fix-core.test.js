@@ -530,6 +530,41 @@ describe('CL-5 / CRYPTO-5: identity changes', () => {
     assert.equal((await contactOf(bob, 'cl5_alice')).hold, false);
     for (const c of [alice, bob, mal]) c.lock();
   });
+
+  test('R-3: an UNVERIFIED contact\'s changed identity is held too, while the genuine session keeps flowing', async () => {
+    const table = {};
+    const alice = await newClient('r3_alice');
+    const bob = await newClient('r3_bob', { fetch: identityOverride(table) });
+    const mal = await newClient('r3_mal');
+    await bob.startDirect('r3_alice');
+    await bob.sendText('d:r3_alice', 'hola alice');
+    await waitText(alice, 'd:r3_bob', 'hola alice');
+    await alice.sendText('d:r3_bob', 'hola bob');
+    await waitText(bob, 'd:r3_alice', 'hola bob');
+    assert.equal((await contactOf(bob, 'r3_alice')).verified, false, 'precondition: never verified');
+
+    const changes = [];
+    bob.addEventListener('keychange', (e) => changes.push(e.detail.username));
+    table.r3_alice = identityOf(mal); // malicious server confirms the attacker's keys
+    mal._username = 'r3_alice';
+    await rawSend(mal, ['r3_bob'], { id: nid(), ts: Date.now(), kind: 'text', body: { text: 'Soy Alice: dame tu clave del wifi' } });
+    await waitFor(() => changes.length === 1, { what: 'keychange' });
+    await settle(bob);
+    assert.ok(!(await texts(bob, 'd:r3_alice')).some((t) => t.includes('clave del wifi')), 'impersonation shown in an unverified chat');
+    assert.equal((await contactOf(bob, 'r3_alice')).hold, true);
+    const sys = (await bob.getMessages('d:r3_alice')).filter((m) => m.kind === 'system').map((m) => m.text).join('\n');
+    assert.match(sys, /retenidos/);
+    await assert.rejects(bob.sendText('d:r3_alice', 'no'), /key_changed/);
+    // The real Alice, on the session bound to the identity Bob had pinned, is not silenced.
+    await alice.sendText('d:r3_bob', 'soy la de verdad');
+    await waitText(bob, 'd:r3_alice', 'soy la de verdad');
+    assert.ok(!(await texts(bob, 'd:r3_alice')).some((t) => t.includes('clave del wifi')));
+    // Only an explicit user decision releases what was held.
+    await bob.acceptKeyChange('r3_alice');
+    assert.ok((await texts(bob, 'd:r3_alice')).some((t) => t.includes('clave del wifi')));
+    assert.equal((await contactOf(bob, 'r3_alice')).hold, false);
+    for (const c of [alice, bob, mal]) c.lock();
+  });
 });
 
 describe('CL-6 / CRYPTO-6: prototype-colliding usernames', () => {

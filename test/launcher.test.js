@@ -161,9 +161,13 @@ describe('host + join end to end (fake Tor)', () => {
     assert.ok(record.targetPort, 'Tor was pointed at the hosted server');
     assert.equal((await get(hostL.port, '/')).status, 200);
 
+    // R-1: the host's network is invitation-only; the guest presents a single-use code.
+    r = await post(hostL.port, '/_local/invite', {});
+    assert.equal(r.status, 200);
+    const code = r.json.code;
     const joinL = await createLauncher({ homeDir: tmp(), publicDir: PUBLIC, uiDir: UI, port: 0, startTor: fakeTorFactory({ [ONION_A]: () => record.targetPort }) });
     cleanups.push(() => joinL.close());
-    r = await post(joinL.port, '/_local/setup', { mode: 'join', onion: ` http://${ONION_A}/ ` });
+    r = await post(joinL.port, '/_local/setup', { mode: 'join', onion: ` http://${ONION_A}/ `, invite: code.toLowerCase() });
     assert.equal(r.status, 200);
     assert.equal(r.json.onion, ONION_A);
     await waitFor(async () => (await get(joinL.port, '/api/pow?purpose=send')).status === 200);

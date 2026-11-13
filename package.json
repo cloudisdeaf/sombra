@@ -1,6 +1,6 @@
 {
   "name": "sombra",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Mensajería privada cifrada de extremo a extremo entre amigos, por Tor.",
   "type": "module",

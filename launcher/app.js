@@ -9,11 +9,13 @@
 // Accept-Language…), so the host learns nothing about your browser.
 import http from 'node:http';
 import net from 'node:net';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { socks5Connect } from './socks.js';
 import { startTor as defaultStartTor, normalizeOnion, freePort } from './tor.js';
 import { startServer as defaultStartServer } from '../server/index.js';
+import { normalizeInvite } from '../server/access.js';
 
 export const DEFAULT_PORT = 47321;
 
@@ -99,6 +101,8 @@ export async function createLauncher(o) {
   const state = {
     mode: null,          // 'host' | 'join'
     onion: null,
+    registration: null,  // host only: 'invite' | 'closed'
+    invites: 0,          // host only: outstanding single-use invitations
     ready: false,        // network backend usable
     tor: { state: 'off', progress: 0, error: null },
     version: o.version || 'dev',
@@ -108,12 +112,14 @@ export async function createLauncher(o) {
   let backendHost = null;    // Host header sent to the backend
   let hosted = null;         // { port, close } of the hosted server
   let tor = null;
+  let localKey = null;       // host: proves to the server that a request comes from this launcher
+  let joinInvite = null;     // join: invitation code attached to the registration request
 
   const readConfig = () => {
     try {
       const c = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (c && c.mode === 'host') return { mode: 'host' };
-      if (c && c.mode === 'join' && normalizeOnion(c.onion)) return { mode: 'join', onion: normalizeOnion(c.onion) };
+      if (c && c.mode === 'host') return { mode: 'host', registration: c.registration === 'closed' ? 'closed' : 'invite' };
+      if (c && c.mode === 'join' && normalizeOnion(c.onion)) return { mode: 'join', onion: normalizeOnion(c.onion), invite: normalizeInvite(c.invite) || null };
     } catch { /* none yet */ }
     return null;
   };
@@ -128,14 +134,21 @@ export async function createLauncher(o) {
     sync();
   };
 
+  function syncAccess() {
+    state.invites = hosted && hosted.access ? hosted.access.count() : 0;
+  }
+
   async function activate(cfg) {
     state.mode = cfg.mode;
     if (cfg.mode === 'host') {
+      localKey = crypto.randomBytes(24).toString('hex');
       hosted = await startServer({
         port: 0, host: '127.0.0.1',
         dataDir: path.join(o.homeDir, 'server'),
         publicDir: o.publicDir,
         rateLimit: false, // every Tor client arrives from 127.0.0.1; PoW is the spam control
+        registration: cfg.registration === 'closed' ? 'closed' : 'invite', // R-1
+        localKey,
         ...(o.serverOptions || {}),
       });
       const target = hosted.port;
@@ -145,6 +158,8 @@ export async function createLauncher(o) {
         s.once('error', reject);
       });
       backendHost = `127.0.0.1:${target}`;
+      state.registration = cfg.registration === 'closed' ? 'closed' : 'invite';
+      syncAccess();
       state.ready = true; // usable locally right away; friends can reach it once Tor is up
       if (o.torPath || o.startTor) {
         tor = startTor({ torPath: o.torPath, dataDir: path.join(o.homeDir, 'tor-host'), hidden: { dir: path.join(o.homeDir, 'onion-service'), targetPort: target } });
@@ -154,6 +169,7 @@ export async function createLauncher(o) {
     } else {
       if (!o.torPath && !o.startTor) throw new Error('no_tor');
       state.onion = cfg.onion;
+      joinInvite = cfg.invite || null;
       const socksPort = await freePort();
       tor = startTor({ torPath: o.torPath, dataDir: path.join(o.homeDir, 'tor-join'), socksPort });
       watchTor(tor);
@@ -167,7 +183,9 @@ export async function createLauncher(o) {
     if (hosted) { await hosted.close(); hosted = null; }
     backendConnect = null;
     backendHost = null;
-    Object.assign(state, { mode: null, onion: null, ready: false, tor: { state: 'off', progress: 0, error: null } });
+    localKey = null;
+    joinInvite = null;
+    Object.assign(state, { mode: null, onion: null, registration: null, invites: 0, ready: false, tor: { state: 'off', progress: 0, error: null } });
   }
 
   // ------------------------------------------------------------------ request guards
@@ -203,6 +221,9 @@ export async function createLauncher(o) {
     if (!backendConnect || !state.ready) { sendJson(res, 503, { error: 'offline' }); return; }
     const headers = { host: backendHost };
     for (const h of FWD_REQ) if (req.headers[h] !== undefined) headers[h] = req.headers[h];
+    // R-1: the host's own app skips the invitation check; a guest's app presents its code.
+    if (localKey) headers['x-sombra-local'] = localKey;
+    else if (joinInvite && req.method === 'POST' && req.url.split('?')[0] === '/api/register') headers['x-sombra-invite'] = joinInvite;
     if (req.headers['transfer-encoding'] !== undefined && headers['content-length'] === undefined) headers['transfer-encoding'] = 'chunked';
     const connect = backendConnect;
     const preq = http.request({
@@ -227,18 +248,21 @@ export async function createLauncher(o) {
 
   async function handleLocal(req, res, p) {
     if (p === '/_local/ping' && req.method === 'GET') { sendJson(res, 200, { sombra: true }); return; }
-    if (p === '/_local/status' && req.method === 'GET') { sendJson(res, 200, state); return; }
+    if (p === '/_local/status' && req.method === 'GET') { syncAccess(); sendJson(res, 200, state); return; }
     if (req.method === 'POST') {
       let body;
       try { body = await readBodyJson(req); } catch { sendJson(res, 400, { error: 'bad_request' }); return; }
       if (p === '/_local/setup') {
         if (state.mode) { sendJson(res, 409, { error: 'already_configured' }); return; }
         let cfg = null;
-        if (body.mode === 'host') cfg = { mode: 'host' };
+        if (body.mode === 'host') cfg = { mode: 'host', registration: 'invite' };
         else if (body.mode === 'join') {
           const onion = normalizeOnion(body.onion);
           if (!onion) { sendJson(res, 400, { error: 'bad_address' }); return; }
-          cfg = { mode: 'join', onion };
+          const rawInvite = typeof body.invite === 'string' ? body.invite.trim() : '';
+          const invite = rawInvite ? normalizeInvite(rawInvite) : null;
+          if (rawInvite && !invite) { sendJson(res, 400, { error: 'bad_invite' }); return; }
+          cfg = { mode: 'join', onion, invite };
         }
         if (!cfg) { sendJson(res, 400, { error: 'bad_request' }); return; }
         try {
@@ -249,6 +273,32 @@ export async function createLauncher(o) {
           sendJson(res, 500, { error: 'start_failed' });
           return;
         }
+        sendJson(res, 200, state);
+        return;
+      }
+      if (p === '/_local/invite') {
+        if (state.mode !== 'host' || !hosted || !hosted.access) { sendJson(res, 409, { error: 'not_host' }); return; }
+        if (state.registration === 'closed') { sendJson(res, 409, { error: 'registration_closed' }); return; }
+        let code;
+        try { code = hosted.access.createInvite(); } catch { sendJson(res, 429, { error: 'too_many_invites' }); return; }
+        syncAccess();
+        sendJson(res, 200, { ...state, code });
+        return;
+      }
+      if (p === '/_local/invites/revoke') {
+        if (state.mode !== 'host' || !hosted || !hosted.access) { sendJson(res, 409, { error: 'not_host' }); return; }
+        hosted.access.revokeAll();
+        syncAccess();
+        sendJson(res, 200, state);
+        return;
+      }
+      if (p === '/_local/registration') {
+        if (state.mode !== 'host' || !hosted || !hosted.access) { sendJson(res, 409, { error: 'not_host' }); return; }
+        if (body.mode !== 'invite' && body.mode !== 'closed') { sendJson(res, 400, { error: 'bad_request' }); return; }
+        hosted.access.setMode(body.mode);
+        state.registration = body.mode;
+        writeConfig({ mode: 'host', registration: body.mode });
+        syncAccess();
         sendJson(res, 200, state);
         return;
       }

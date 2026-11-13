@@ -20,6 +20,7 @@ import { WebSocketServer } from 'ws';
 
 import { config as envConfig, LIMITS } from './config.js';
 import { openDatabase, roundUpToUtcDay } from './db.js';
+import { AccessControl } from './access.js';
 import { PowManager, sendPowExtraBits } from './pow.js';
 import {
   ValidationError, assertObject, assertUsername, assertNewUsername, isPlainObject, isUsername,
@@ -522,6 +523,8 @@ export async function startServer(options = {}) {
   const bundleOpksPerTarget = cfg.bundleOpksPerTarget ?? LIMITS.BUNDLE_OPKS_PER_TARGET;
 
   const db = openDatabase(path.resolve(cfg.dataDir));
+  // R-1: who may register (open by default; the desktop launcher uses invite/closed).
+  const access = new AccessControl({ dir: path.resolve(cfg.dataDir), mode: cfg.registration, localKey: cfg.localKey });
   const pow = new PowManager({
     registerBits: cfg.powRegisterBits,
     sendBits: cfg.powSendBits,
@@ -668,6 +671,8 @@ export async function startServer(options = {}) {
     rateCheck(req, 'register');
     acquireBodySlot(req, res);
     const body = await readJsonObject(req, res, LIMITS.REGISTER_BODY_BYTES, bodyCtx);
+    const gate = access.check(req.headers);
+    if (!gate.ok) throw new HttpError(403, gate.error);
     const username = assertNewUsername(body.username); // CL-6: reserved names refused
     const ikSig = decodeKey(body.ik_sig);
     const ikDh = decodeKey(body.ik_dh);
@@ -687,6 +692,7 @@ export async function startServer(options = {}) {
     if (created === 'username_taken') throw new HttpError(409, 'username_taken');
     // CRYPTO-7: an identity key (ik_sig or ik_dh) already registered to another username.
     if (created === 'identity_taken') throw new HttpError(409, 'identity_taken');
+    gate.consume(); // single-use invitation spent only on success
     sendJson(res, 201, { ok: true });
   }
 
@@ -1209,7 +1215,7 @@ export async function startServer(options = {}) {
     db.close();
   }
 
-  return { port: server.address().port, close };
+  return { port: server.address().port, close, access };
 }
 
 // ---------------------------------------------------------------------------------------

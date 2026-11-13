@@ -150,8 +150,9 @@ liga cuentas entre sí, no a personas.
 3. **Confianza en el primer uso** (TOFU). Hasta que verifiques el número de seguridad en
    persona, un servidor malicioso puede sustituir las claves en el **primer** contacto y hacer
    de intermediario. Después, cualquier cambio de clave muestra un aviso y bloquea el envío.
-   Aun así, los mensajes que lleguen con la identidad nueva **se muestran** antes de que la
-   aceptes.
+   Si la identidad de un contacto ya fijado cambia (verificado o no), los mensajes que lleguen
+   con la identidad nueva **quedan retenidos** hasta que aceptes el número de seguridad (R-3);
+   los que lleguen por la sesión de la identidad anterior siguen apareciendo.
 4. **No hay Argon2.** WebCrypto no ofrece funciones de derivación resistentes a memoria. Se
    usa PBKDF2-SHA256 con 600 000 iteraciones, que es barato de atacar con GPU. Usa una
    **frase larga**: 5 o más palabras al azar. No se puede cambiar la frase de acceso de un
@@ -199,8 +200,14 @@ liga cuentas entre sí, no a personas.
   horas, tamaños por tramos y presencia. No ve IPs, porque todo llega por Tor. Por eso
   mismo el limitador por dirección está apagado y el freno contra el spam es la prueba de
   trabajo.
-- **La dirección `.onion` es la llave de entrada**: quien la conozca puede registrarse en
-  tu red. Compártela solo con tus amigos. Su clave privada está en
+- **Registro con invitación (R-1).** La dirección `.onion` ya no basta para crear una cuenta:
+  hace falta un código de un solo uso (100 bits) que el anfitrión crea en el panel. El servidor
+  solo guarda su hash SHA-256, sin fechas, y lo gasta únicamente si el registro tiene éxito. El
+  anfitrión puede anular los códigos pendientes o **cerrar el registro** (nadie nuevo entra, ni
+  con código). Su propia app se identifica ante el servidor con una clave aleatoria por
+  ejecución que añade el lanzador, así que sigue pudiendo crear cuentas. Quien ya tenga cuenta
+  no necesita código. Un código filtrado permite crear **una** cuenta; la pérdida de una
+  dirección sin código ya no deja la red abierta. Su clave privada está en
   `%LOCALAPPDATA%\Sombra\onion-service`. Quien la robe puede hacerse pasar por la red,
   pero no leer mensajes ni suplantar a nadie (cifrado de extremo a extremo y números de
   seguridad).
@@ -281,6 +288,8 @@ El estado de cada hallazgo se ha determinado leyendo el código actual y sus pru
 | C3 | Baja | No había forma de desactivar las confirmaciones desde la aplicación. | Corregido (e2e): interruptores en Ajustes › Seguridad. |
 | UI-1 | Media | Borrar o restaurar desde una segunda pestaña dejaba la primera desbloqueada escribiendo en una base borrada o sustituida. | Corregido (e2e): aviso entre pestañas (BroadcastChannel) y borrado/restauración bajo el Web Lock de la cuenta. |
 | SRV-12 | Baja | Tras un 413 con longitud declarada, el servidor destruía el socket después de responder y el cliente reutilizaba una conexión muerta (`ECONNRESET`). | Corregido (test): se drena exactamente la longitud declarada. |
+| R-1 | Alta | La dirección `.onion` era la única llave de la red: cualquiera que la tuviera podía registrarse. | Corregido (test): registro con invitación de un solo uso, anulación de invitaciones y cierre del registro desde el panel (`server/access.js`, `test/access.test.js`). Residual: un código filtrado permite crear una cuenta; con `RATE_LIMIT=off` sigue mandando la prueba de trabajo contra el spam de otras rutas. |
+| R-3 | Media | Los mensajes de un contacto **no verificado** cuya identidad cambiaba se mostraban antes de que el usuario aceptara el cambio. | Corregido (test): se retienen igual que los de un contacto verificado, y la sesión de la identidad anterior sigue fluyendo (VC-2). Residual: el primer contacto sigue siendo confianza en el primer uso hasta que verifiquéis el número. |
 
 ### Cómo informar de un problema
 

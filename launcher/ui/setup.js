@@ -55,8 +55,14 @@ function render(s) {
   $('readyTitle').textContent = 'Tu red está activa';
   const addr = s.onion || '';
   $('addr').textContent = addr || (s.tor.state === 'off' ? 'Tor no está disponible en esta instalación.' : 'Preparando dirección…');
-  $('copyInvite').disabled = !addr;
+  const closed = s.registration === 'closed';
+  $('copyInvite').disabled = !addr || closed;
   $('copyAddr').disabled = !addr;
+  $('revokeBtn').disabled = !s.invites;
+  $('regBtn').textContent = closed ? 'Abrir el registro con invitaciones' : 'Cerrar el registro';
+  $('inviteNote').textContent = closed
+    ? 'Registro cerrado: nadie nuevo puede crear cuenta, ni con código. Tus amigos que ya tienen cuenta siguen conectados.'
+    : (s.invites ? `Invitaciones sin usar: ${s.invites}. Cada código sirve una sola vez.` : 'No hay invitaciones sin usar. Crea una por cada amigo.');
   let note = 'Tus amigos podrán conectar unos segundos después de que Tor termine de arrancar.';
   if (s.tor.state === 'ready') note = 'Tor está conectado: tu red es accesible mientras Sombra siga abierto.';
   else if (s.tor.state === 'error') note = TOR_ERRORS[s.tor.error] || 'Error de Tor: tus amigos no pueden conectar ahora.';
@@ -84,11 +90,13 @@ $('joinForm').addEventListener('submit', async (ev) => {
   busy = true;
   $('joinErr').hidden = true;
   try {
-    render(await api('/_local/setup', { mode: 'join', onion: $('onion').value }));
+    render(await api('/_local/setup', { mode: 'join', onion: $('onion').value, invite: $('invite').value }));
   } catch (err) {
     $('joinErr').textContent = err.message === 'bad_address'
       ? 'Esa dirección no parece válida. Debe terminar en .onion y tener 56 caracteres antes.'
-      : 'No se pudo iniciar la conexión.';
+      : err.message === 'bad_invite'
+        ? 'El código de invitación no es válido. Son 20 letras y números, por ejemplo XXXX-XXXX-XXXX-XXXX-XXXX.'
+        : 'No se pudo iniciar la conexión.';
     $('joinErr').hidden = false;
   } finally { busy = false; }
 });
@@ -100,17 +108,37 @@ $('hostBtn').addEventListener('click', async () => {
 });
 
 $('copyAddr').addEventListener('click', () => { if (last && last.onion) copy(last.onion, 'Dirección copiada'); });
-$('copyInvite').addEventListener('click', () => {
-  if (!last || !last.onion) return;
-  const text = [
-    'Te invito a mi red privada de Sombra (mensajes cifrados de extremo a extremo, por Tor).',
-    '',
-    `1. Descarga Sombra: ${last.downloadUrl}`,
-    '2. Ábrelo y elige «Unirme a una red».',
-    `3. Pega esta dirección: ${last.onion}`,
-    '4. Crea tu usuario y escríbeme.',
-  ].join('\n');
-  copy(text, 'Invitación copiada');
+$('copyInvite').addEventListener('click', async () => {
+  if (!last || !last.onion || busy) return;
+  busy = true;
+  try {
+    const r = await api('/_local/invite', {});
+    render(r);
+    $('inviteCode').textContent = r.code;
+    $('inviteCode').hidden = false;
+    const text = [
+      'Te invito a mi red privada de Sombra (mensajes cifrados de extremo a extremo, por Tor).',
+      '',
+      `1. Descarga Sombra: ${r.downloadUrl}`,
+      '2. Ábrelo y elige «Unirme a una red».',
+      `3. Pega esta dirección: ${r.onion}`,
+      `4. Pega este código (sirve una sola vez): ${r.code}`,
+      '5. Crea tu usuario y escríbeme.',
+    ].join('\n');
+    await copy(text, 'Invitación creada y copiada');
+  } catch (err) {
+    toast(err.message === 'registration_closed' ? 'El registro está cerrado.' : 'No se pudo crear la invitación.');
+  } finally { busy = false; }
+});
+
+$('revokeBtn').addEventListener('click', async () => {
+  if (!confirm('¿Anular todas las invitaciones sin usar? Los códigos que ya hayas enviado dejarán de funcionar.')) return;
+  try { render(await api('/_local/invites/revoke', {})); $('inviteCode').hidden = true; toast('Invitaciones anuladas'); } catch { toast('No se pudo anular.'); }
+});
+
+$('regBtn').addEventListener('click', async () => {
+  if (!last) return;
+  try { render(await api('/_local/registration', { mode: last.registration === 'closed' ? 'invite' : 'closed' })); } catch { toast('No se pudo cambiar.'); }
 });
 
 $('resetBtn').addEventListener('click', async () => {

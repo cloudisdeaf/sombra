@@ -20,8 +20,10 @@
 ```
 
 - **Una persona crea la red.** Su ordenador hace de punto de encuentro, publicado como
-  servicio oculto de Tor. Comparte su dirección `.onion` con el grupo.
-- **El resto se une** pegando esa dirección. Cada uno crea un usuario: sin teléfono ni
+  servicio oculto de Tor. La red es **solo con invitación**: para cada amigo crea un código de
+  un solo uso y se lo pasas junto con la dirección `.onion` (el botón *Crear invitación y
+  copiar* arma el mensaje entero).
+- **El resto se une** pegando esa dirección y su código. Cada uno crea un usuario: sin teléfono ni
   correo, solo un nombre y una frase de acceso que nunca sale de su ordenador.
 - **Los mensajes se cifran en tu navegador** con el protocolo de Signal (X3DH + Double
   Ratchet). Quien aloja la red solo transporta sobres cerrados: no sabe qué dicen ni quién
@@ -36,7 +38,8 @@
    y se abre en tu navegador. Si Windows avisa («Windows protegió su PC»), pulsa
    **Más información → Ejecutar de todas formas**: el programa no está firmado con un
    certificado de pago.
-2. Elige **Crear mi red** o **Unirme a una red**, y pega la dirección si te la han pasado.
+2. Elige **Crear mi red** o **Unirme a una red**, y pega la dirección y el código si te los han pasado.
+   Si eres el anfitrión puedes **cerrar el registro** cuando ya estéis todos: nadie nuevo podrá entrar, ni con código.
 3. Crea tu usuario y escribe a tus amigos por su `@usuario`.
 4. La primera vez que habléis, comparad el **número de seguridad**: en persona o por una
    llamada. Si coincide, nadie puede estar en medio.

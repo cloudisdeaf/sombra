@@ -23,11 +23,13 @@
 
       <div class="card">
         <h2>Unirme a una red</h2>
-        <p>Pega la dirección <code>.onion</code> que te ha pasado tu amigo.</p>
+        <p>Pega la dirección <code>.onion</code> y el código de invitación que te ha pasado tu amigo.</p>
         <form id="joinForm" class="row" autocomplete="off">
           <input id="onion" type="text" spellcheck="false" placeholder="xxxxxxxx….onion" aria-label="Dirección de la red">
+          <input id="invite" type="text" spellcheck="false" placeholder="Código: XXXX-XXXX-XXXX-XXXX-XXXX" aria-label="Código de invitación">
           <button type="submit" class="primary">Unirme</button>
         </form>
+        <p class="muted small">El código sirve una sola vez para crear tu cuenta. Si ya tienes cuenta en esa red, déjalo en blanco.</p>
         <p id="joinErr" class="err" hidden></p>
       </div>
 
@@ -51,11 +53,17 @@
       <h1 id="readyTitle">Listo</h1>
       <div id="hostBox" class="card" hidden>
         <h2>Tu dirección</h2>
-        <p class="muted">Compártela solo con tus amigos. Quien la tenga puede crear una cuenta en tu red.</p>
+        <p class="muted">Para entrar en tu red hace falta esta dirección <b>y</b> un código de invitación de un solo uso. Sin código nadie puede crear una cuenta.</p>
         <p class="addr" id="addr">Preparando dirección…</p>
         <div class="row">
-          <button id="copyInvite" type="button" disabled>Copiar invitación</button>
+          <button id="copyInvite" type="button" class="primary" disabled>Crear invitación y copiar</button>
           <button id="copyAddr" type="button" disabled>Copiar dirección</button>
+        </div>
+        <p class="addr" id="inviteCode" hidden></p>
+        <p class="muted small" id="inviteNote"></p>
+        <div class="row">
+          <button id="revokeBtn" type="button">Anular invitaciones</button>
+          <button id="regBtn" type="button">Cerrar el registro</button>
         </div>
         <p class="muted small" id="hostNote">Tus amigos podrán conectar unos segundos después de que Tor termine de arrancar.</p>
       </div>

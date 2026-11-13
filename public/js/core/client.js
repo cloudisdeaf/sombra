@@ -981,15 +981,17 @@ export class SombraClient extends EventTarget {
   async _applyKeyChange(username, ik) {
     const contacts = await this._getContacts();
     const prev = own(contacts, username) || {};
-    // CL-5: a contact the user VERIFIED is not silently re-pinned for inbound traffic: a
-    // server-confirmed change is no evidence against a malicious server. Everything that
-    // contact sends from now on is held out of the conversations until the user accepts
-    // the new safety number (acceptKeyChange / setVerified(true)).
-    const hold = !!prev.verified || !!prev.hold;
-    // VC-2: remember the identity the user had VERIFIED. Traffic still authenticated by
-    // a session bound to it is genuine and keeps flowing; only the new identity is held.
+    // CL-5 / R-3: a contact whose identity was already pinned (verified or not) is never
+    // silently re-pinned for inbound traffic: a server-confirmed change is no evidence
+    // against a malicious server. Everything that contact sends under the new identity is
+    // held out of the conversations until the user accepts the new safety number
+    // (acceptKeyChange / setVerified(true)). Before R-3 this only covered VERIFIED contacts,
+    // so a server swapping the keys of an unverified contact had its messages shown at once.
+    const hold = !!prev.ik_sig || !!prev.verified || !!prev.hold;
+    // VC-2: remember the identity the user had pinned. Traffic still authenticated by a
+    // session bound to it is genuine and keeps flowing; only the new identity is held.
     const heldPrevIk = hold
-      ? (prev.heldPrevIk || (prev.verified && prev.ik_sig ? { ik_sig: prev.ik_sig, ik_dh: prev.ik_dh } : null))
+      ? (prev.heldPrevIk || (prev.ik_sig ? { ik_sig: prev.ik_sig, ik_dh: prev.ik_dh } : null))
       : null;
     contacts[username] = {
       ...prev,

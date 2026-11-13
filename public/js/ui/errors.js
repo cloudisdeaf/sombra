@@ -4,6 +4,8 @@
 
 const MESSAGES = [
   ['username_taken', 'Ese nombre de usuario ya está en uso. Prueba con otro.'],
+  ['invite_required', 'Esta red necesita un código de invitación. Pídeselo a quien la creó y vuelve a elegir «Unirme a una red» con ese código.'],
+  ['registration_closed', 'El anfitrión ha cerrado el registro en esta red. Pídele que lo abra y te dé una invitación.'],
   ['identity_taken', 'Estas claves de identidad ya están registradas para otro usuario. Vuelve a intentarlo.'],
   ['bad_username', 'Nombre de usuario no válido: de 3 a 32 letras minúsculas, números o guiones bajos.'],
   ['account_exists', 'Ya hay una cuenta en este dispositivo.'],
