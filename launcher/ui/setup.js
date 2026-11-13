@@ -31,6 +31,9 @@ const TOR_ERRORS = {
 
 function render(s) {
   last = s;
+  // Never contacts anyone by itself: the link just opens the releases page.
+  if (s.version && s.version !== 'dev') $('verLink').textContent = `Versión ${s.version} · buscar actualizaciones`;
+  if (typeof s.downloadUrl === 'string' && /^https:\/\//.test(s.downloadUrl)) $('verLink').href = s.downloadUrl;
   $('resetBtn').hidden = !s.mode;
   if (!s.mode) { show('choose'); return; }
   if (s.mode === 'join' && !s.ready) {

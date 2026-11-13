@@ -44,6 +44,11 @@
    Si eres el anfitrión puedes **cerrar el registro** cuando ya estéis todos: nadie nuevo podrá entrar, ni con código.
 3. Crea tu usuario y escribe a tus amigos por su `@usuario`. Al volver a entrar, escribe tu
    **@usuario** y tu frase de acceso.
+   **Vaciar o eliminar un chat para todos:** menú ⋮ del chat → *Vaciar chat para todos* (o *Eliminar chat
+   para todos* en chats de dos). Cualquier participante puede, también en grupos. Es un ruego a las apps de los
+   demás, no una garantía: no borra capturas ni copias, ni afecta a versiones antiguas o modificadas.
+   **Grupos:** crea uno con el botón de grupo; el administrador puede añadir y **expulsar** miembros.
+   **Archivos:** hasta 100 MiB por archivo (ver `SECURITY.md` §4 para los límites reales).
 4. La primera vez que habléis, comparad el **número de seguridad**: en persona o por una
    llamada. Si coincide, nadie puede estar en medio.
 

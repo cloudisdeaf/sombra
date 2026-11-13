@@ -220,6 +220,17 @@ liga cuentas entre sí, no a personas.
   con la frase (un nombre equivocado da el mismo mensaje genérico). No es un inicio de sesión
   desde cualquier navegador: sin la copia de seguridad, las claves no existen fuera de este
   dispositivo.
+- **Vaciar o eliminar un chat para todos** (cualquier participante) funciona con un mensaje de control cifrado
+  como el resto: cada app lo aplica si quien lo manda es miembro. Un miembro malicioso puede borrar el historial
+  de los demás, y quien use una versión antigua (anterior a 1.3.0), una app modificada o haya copiado el contenido
+  lo conserva. Los dispositivos desconectados lo aplican al conectarse (la cola guarda 14 días).
+- **Expulsar** a un miembro la hace solo el administrador. Como el cifrado de grupo es por parejas, no hay clave
+  de grupo que renovar: la persona expulsada deja de recibir mensajes nuevos y conserva lo que ya tenía.
+- **Tamaño de archivo: 100 MiB.** Un archivo se cifra tres veces anidado y se trocea en sobres de unos 9 MiB por
+  cada 3 MiB, así que ocupa unas 3 veces su tamaño en la cola del servidor mientras el destinatario está
+  desconectado, y se guarda entero en la memoria y en la base cifrada del navegador. Llegar a varios GB exige un
+  transporte nuevo (trozos en disco, reanudación, cuota por usuario); no es un cambio de un número. La red del
+  anfitrión admite 1 GiB de cola por destinatario; el servidor suelto, 256 MiB.
 - **Actualizar** ejecutando el instalador nuevo cierra la versión abierta, la reemplaza y
   conserva los datos (cuentas en el navegador, red y clave onion en `%LOCALAPPDATA%Sombra`).
 - Las pruebas automáticas cubren el lanzador con un Tor simulado (SOCKS5 falso). Tor
@@ -294,6 +305,7 @@ El estado de cada hallazgo se ha determinado leyendo el código actual y sus pru
 | C3 | Baja | No había forma de desactivar las confirmaciones desde la aplicación. | Corregido (e2e): interruptores en Ajustes › Seguridad. |
 | UI-1 | Media | Borrar o restaurar desde una segunda pestaña dejaba la primera desbloqueada escribiendo en una base borrada o sustituida. | Corregido (e2e): aviso entre pestañas (BroadcastChannel) y borrado/restauración bajo el Web Lock de la cuenta. |
 | SRV-12 | Baja | Tras un 413 con longitud declarada, el servidor destruía el socket después de responder y el cliente reutilizaba una conexión muerta (`ECONNRESET`). | Corregido (test): se drena exactamente la longitud declarada. |
+| R-5 | Media | Panel local en puerto fijo sin autenticación. | Riesgo aceptado: cualquier programa del mismo usuario puede hacer lo mismo que el navegador, y una ficha en la página no lo evitaría. Mitigaciones existentes: comprobación de Host/Origin/Sec-Fetch-Site. |
 | R-1 | Alta | La dirección `.onion` era la única llave de la red: cualquiera que la tuviera podía registrarse. | Corregido (test): registro con invitación de un solo uso, anulación de invitaciones y cierre del registro desde el panel (`server/access.js`, `test/access.test.js`). Residual: un código filtrado permite crear una cuenta; con `RATE_LIMIT=off` sigue mandando la prueba de trabajo contra el spam de otras rutas. |
 | R-3 | Media | Los mensajes de un contacto **no verificado** cuya identidad cambiaba se mostraban antes de que el usuario aceptara el cambio. | Corregido (test): se retienen igual que los de un contacto verificado, y la sesión de la identidad anterior sigue fluyendo (VC-2). Residual: el primer contacto sigue siendo confianza en el primer uso hasta que verifiquéis el número. |
 

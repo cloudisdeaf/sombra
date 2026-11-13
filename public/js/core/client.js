@@ -64,11 +64,13 @@ const SEEN_MAX = 2000;            // remembered app ids per conversation (dedup)
 const SWEEP_INTERVAL_MS = 5 * SECOND;
 const PARTS_TTL_MS = DAY;         // incomplete chunked files are discarded after this
 
-export const MAX_FILE_BYTES = 8 * 1024 * 1024;
+export const MAX_FILE_BYTES = 100 * 1024 * 1024;
 // Files larger than this are sent as several chunk messages. Each wrapping layer
 // (file data b64u → ratchet ct b64u → sealed inner b64u) expands by 4/3 plus padding
 // buckets, so one 8 MiB payload would produce a ~20 MiB blob, above the server's
-// 12 MiB per-blob limit (SPEC §3.4). A 3 MiB chunk yields a ~9 MiB blob.
+// 12 MiB per-blob limit (SPEC §3.4). A 3 MiB chunk yields a ~9 MiB blob. The same
+// expansion (about 3x) is what a file costs in the recipient's server queue, so the
+// per-recipient queue (256 MiB by default) is what really bounds the file size.
 const FILE_CHUNK_BYTES = 3 * 1024 * 1024;
 const MAX_FILE_PARTS = 64;
 const MAX_TEXT_CHARS = 65536;
@@ -116,7 +118,7 @@ const SESSION_SWEEP_INTERVAL_MS = 3600 * SECOND;
 const PREVIOUS_SESSION_MAX_IDLE_MS = 30 * DAY;
 // CL-7: storage quotas for strangers / spam.
 const MAX_INFLIGHT_FILES_PER_SENDER = 2;
-const FPARTS_MAX_BYTES = 32 * 1024 * 1024;
+const FPARTS_MAX_BYTES = 256 * 1024 * 1024;
 const MAX_GROUPS_PER_CREATOR = 32;
 const MAX_GROUPS_TOTAL = 512;
 // Default privacy delays (ms), uniformly random in [min, max]:
@@ -1670,6 +1672,7 @@ export class SombraClient extends EventTarget {
       case 'file': await this._onFile(ctx, p.body); break;
       case 'receipt': await this._onReceipt(ctx, p.body); break;
       case 'delete': await this._onDelete(ctx, p.body); break;
+      case 'wipe': await this._onWipe(ctx, p.body); break;
       case 'timer': await this._onTimer(ctx, p.body); break;
       case 'group_update': await this._onGroupUpdate(ctx, p.body); break;
       case 'group_leave': await this._onGroupLeave(ctx); break;
@@ -1916,6 +1919,78 @@ export class SombraClient extends EventTarget {
     }
     if (touched) await this._set('fparts', index);
     if (removed.length) this._emit('update', { convId: ctx.convId });
+  }
+
+  /**
+   * Remove every message of a conversation from this device (files and half-received
+   * chunks included). `remove` also deletes the conversation itself (direct chats only).
+   * The (sender, id) dedup list is kept, so a late duplicate cannot bring a message back.
+   */
+  async _wipeLocal(convId, { remove = false, note = null } = {}) {
+    const msgs = await this._getMsgs(convId);
+    for (const m of msgs) if (m.kind === 'file') await this._store.delete(`file:${convId}:${m.id}`);
+    const index = await this._getFparts();
+    let touched = false;
+    for (const [key, e] of Object.entries(index)) {
+      if (e.convId !== convId) continue;
+      for (const i of e.got) await this._store.delete(`fpart:${key}:${i}`);
+      delete index[key];
+      touched = true;
+    }
+    if (touched) await this._set('fparts', index);
+    await this._store.delete(`msgs:${convId}`);
+    const convs = await this._getConvs();
+    const conv = own(convs, convId);
+    if (remove) {
+      if (conv) { delete convs[convId]; await this._set('convs', convs); }
+    } else if (conv) {
+      Object.assign(conv, { lastText: '', unread: 0, nextExpiry: 0 });
+      await this._set('convs', convs);
+      if (note) await this._addSystemMessage(convId, note);
+    }
+  }
+
+  /** Someone in the conversation emptied it for everyone (any participant may). */
+  async _onWipe(ctx, body) {
+    const remove = !ctx.group && !!(body && body.remove === true);
+    const convs = await this._getConvs();
+    if (!own(convs, ctx.convId)) return;
+    await this._wipeLocal(ctx.convId, {
+      remove,
+      note: `@${ctx.from} vació el chat para todos. No se puede garantizar que otros no hayan guardado copias.`,
+    });
+    this._emit('conversations', {});
+    this._emit('update', { convId: ctx.convId });
+  }
+
+  /**
+   * Empty a conversation here AND ask every other participant's app to do the same
+   * (`remove` also deletes the chat for the other side, direct chats only). Any member of a
+   * chat or group may do it. A participant running a modified app, an older version, or who
+   * already copied the content keeps it; offline participants apply it when they next connect.
+   */
+  async wipeConversation(convId, { remove = false } = {}) {
+    this._requireUnlocked();
+    const prep = await this._serial(async () => {
+      const convs = await this._getConvs();
+      const conv = own(convs, convId);
+      if (!conv) throw new Error('not_found');
+      const doRemove = !!remove && conv.type === 'direct';
+      let enc = null;
+      try {
+        const recipients = await this._recipientsFor(conv);
+        if (recipients.length) {
+          const payload = { id: newId(), ts: this._now(), kind: 'wipe', body: { remove: doRemove } };
+          if (conv.type === 'group') payload.group = conv.group;
+          enc = await this._encryptPayload(recipients, payload);
+        }
+      } catch { enc = null; }
+      await this._wipeLocal(convId, { remove: doRemove, note: 'Vaciaste el chat para todos.' });
+      return enc;
+    });
+    this._emit('conversations', {});
+    this._emit('update', { convId });
+    if (prep) await this._sendControlNow(prep);
   }
 
   async _onTimer(ctx, body) {
@@ -2503,6 +2578,31 @@ export class SombraClient extends EventTarget {
       await this._addSystemMessage(convId, `Añadiste a ${fresh.map((u) => '@' + u).join(', ')}.`);
       const payload = { id: newId(), ts: this._now(), kind: 'group_update', group: g.id, body: { group: { id: g.id, name: g.name, members: g.members, admin: g.admin, creator: g.creator, salt: g.salt } } };
       return this._encryptPayload(g.members.filter((u) => u !== this._username), payload);
+    });
+    this._emit('conversations', {});
+    this._emit('update', { convId });
+    if (prep) await this._sendControlNow(prep);
+  }
+
+  /** Admin only: remove a member. Every member (and the removed one) gets the new list. */
+  async removeGroupMember(convId, username) {
+    this._requireUnlocked();
+    const target = normalizeUsername(username);
+    const prep = await this._serial(async () => {
+      const convs = await this._getConvs();
+      const conv = own(convs, convId);
+      if (!conv || conv.type !== 'group') throw new Error('not_found');
+      const groups = await this._getGroups();
+      const g = own(groups, conv.group);
+      if (!g || g.left) throw new Error('not_member');
+      if (g.admin !== this._username) throw new Error('not_admin');
+      if (target === this._username || !g.members.includes(target)) throw new Error('bad_request');
+      const before = g.members;
+      g.members = before.filter((u) => u !== target);
+      await this._set('groups', groups);
+      await this._addSystemMessage(convId, `Eliminaste a @${target} del grupo.`);
+      const payload = { id: newId(), ts: this._now(), kind: 'group_update', group: g.id, body: { group: { id: g.id, name: g.name, members: g.members, admin: g.admin, creator: g.creator, salt: g.salt } } };
+      return this._encryptPayload(before.filter((u) => u !== this._username), payload);
     });
     this._emit('conversations', {});
     this._emit('update', { convId });

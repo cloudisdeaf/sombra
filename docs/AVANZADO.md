@@ -27,7 +27,7 @@ para quien quiere montar **su propio servidor privado** y dejar el menor rastro 
 
 - Chats 1:1 y **grupos** de hasta 100 miembros. Los mensajes de grupo se cifran por separado
   para cada miembro (*fan-out* por parejas).
-- Texto (hasta 65 536 caracteres) y **archivos** de hasta 8 MiB. Las imágenes se ven dentro
+- Texto (hasta 65 536 caracteres) y **archivos** de hasta 100 MiB. Las imágenes se ven dentro
   del chat. Los archivos de más de 3 MiB se envían en fragmentos.
 - Confirmaciones de **entregado** y **leído**. Viajan cifradas de extremo a extremo y se
   envían con un retraso aleatorio para no delatar al remitente.

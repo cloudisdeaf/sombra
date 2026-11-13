@@ -148,6 +148,7 @@ export async function createLauncher(o) {
         publicDir: o.publicDir,
         rateLimit: false, // every Tor client arrives from 127.0.0.1; PoW is the spam control
         registration: cfg.registration === 'closed' ? 'closed' : 'invite', // R-1
+        queueMaxBytes: 1024 * 1024 * 1024, // a 100 MiB file costs a recipient about 300 MiB of queue while offline
         localKey,
         ...(o.serverOptions || {}),
       });

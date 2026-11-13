@@ -771,7 +771,7 @@ export async function startServer(options = {}) {
     // Stored first (one transaction; survives a dropped socket until ACKed), then pushed.
     const stored = db.enqueueBatch(items, expires, {
       maxMessages: LIMITS.QUEUE_MAX_MESSAGES,
-      maxBytes: LIMITS.QUEUE_MAX_BYTES,
+      maxBytes: cfg.queueMaxBytes ?? LIMITS.QUEUE_MAX_BYTES,
       maxTotalBytes: queueMaxTotalBytes,
       reservedBytes: queueReservedBytes, // APP-2 fair-share eviction (db.js)
       // Keep each recipient's seq above its live connection's flush cursor (db.js).

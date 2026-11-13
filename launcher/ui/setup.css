@@ -46,6 +46,8 @@ button:disabled { opacity: .45; cursor: default; }
 a.big { display: block; text-align: center; padding: 12px; margin-top: 8px; }
 .link { border: 0; padding: 4px 0; color: var(--muted); font-size: 13px; }
 .link:hover { color: var(--text); }
+a.link { text-decoration: none; }
+a.link:hover { text-decoration: underline; }
 .addr {
   font: 13px/1.5 ui-monospace, Consolas, monospace; word-break: break-all; color: var(--text) !important;
   background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; user-select: all;

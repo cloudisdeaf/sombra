@@ -380,7 +380,7 @@ describe('integration', () => {
     assert.equal(files[1].id, sent.id);
     await waitFor(async () => (await alice.getMessages('d:bob')).find((m) => m.id === sent.id).status === 'delivered',
       { what: 'file delivered' });
-    await assert.rejects(alice.sendFile('d:bob', { name: 'x', mime: 'a/b', bytes: new Uint8Array(8 * 1024 * 1024 + 1) }), /file_too_large/);
+    await assert.rejects(alice.sendFile('d:bob', { name: 'x', mime: 'a/b', bytes: new Uint8Array(100 * 1024 * 1024 + 1) }), /file_too_large/);
   });
 
   test('delete for everyone (only by the original sender)', async () => {

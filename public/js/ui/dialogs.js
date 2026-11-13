@@ -284,6 +284,21 @@ export function showGroupInfo(app, convId) {
       const btn = h('button', { type: 'button', class: 'btn btn-small btn-ghost', 'aria-label': `Número de seguridad de @${u}` }, icon('shield'), 'Verificar');
       on(btn, 'click', () => { dlg.close(); app.showSafety(u); });
       row.append(btn);
+      if (conv.admin === app.me) {
+        const kick = h('button', { type: 'button', class: 'btn btn-small btn-ghost', 'aria-label': `Eliminar a @${u} del grupo` }, icon('logout'), 'Expulsar');
+        on(kick, 'click', async () => {
+          const ok = await confirmDialog({ title: 'Expulsar del grupo', message: `@${u} dejará de recibir los mensajes del grupo. Conservará lo que ya recibió.`, confirmLabel: 'Expulsar', danger: true });
+          if (!ok) return;
+          try {
+            await app.client.removeGroupMember(convId, u);
+            toast(`@${u} ya no está en el grupo.`, 'success');
+            await app.refreshConversations();
+            dlg.close();
+            app.showGroupInfo(convId);
+          } catch (err) { toast(errorText(err), 'error'); }
+        });
+        row.append(kick);
+      }
     }
     list.append(row);
   }

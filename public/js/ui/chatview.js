@@ -73,7 +73,7 @@ export function createChatView(app) {
   }, msgList);
 
   const fileInput = h('input', { type: 'file', class: 'visually-hidden', tabindex: '-1', 'aria-hidden': 'true' });
-  const attachBtn = iconButton('paperclip', 'Adjuntar archivo (máx. 8 MiB)', 'attach-btn');
+  const attachBtn = iconButton('paperclip', 'Adjuntar archivo (máx. 100 MiB)', 'attach-btn');
   const textarea = h('textarea', {
     class: 'composer-input', rows: 1, placeholder: 'Mensaje cifrado…', 'aria-label': 'Escribe un mensaje',
     maxlength: MAX_TEXT_CHARS, dir: 'auto', autocomplete: 'off',
@@ -233,10 +233,34 @@ export function createChatView(app) {
     } else {
       items.push({ label: 'Número de seguridad', icon: 'shield', onSelect: () => app.showSafety(c.peer) });
     }
-    items.push({ label: canDeleteConv ? 'Eliminar chat' : 'Vaciar chat', icon: 'trash', danger: true, onSelect: () => deleteChat(c) });
+    items.push({ label: canDeleteConv ? 'Eliminar chat (solo aquí)' : 'Vaciar chat (solo aquí)', icon: 'trash', danger: true, onSelect: () => deleteChat(c) });
+    items.push({ label: 'Vaciar chat para todos', icon: 'trash', danger: true, onSelect: () => wipeForAll(c, false) });
+    if (c.type === 'direct') items.push({ label: 'Eliminar chat para todos', icon: 'trash', danger: true, onSelect: () => wipeForAll(c, true) });
     if (c.type === 'group') items.push({ label: 'Salir del grupo', icon: 'logout', danger: true, onSelect: () => app.leaveGroup(c.id) });
     openMenu({ anchor: moreBtn, label: 'Opciones del chat', items });
   });
+
+  async function wipeForAll(c, remove) {
+    const ok = await confirmDialog({
+      title: remove ? 'Eliminar chat para todos' : 'Vaciar chat para todos',
+      message: [
+        remove
+          ? 'Se borrarán todos los mensajes y archivos de este chat en tu dispositivo y se pedirá a la otra persona que también elimine el chat.'
+          : 'Se borrarán todos los mensajes y archivos de este chat en tu dispositivo y se pedirá a los demás participantes que hagan lo mismo.',
+        'No se puede garantizar: quien tenga una versión modificada o antigua de la app, o ya haya hecho capturas o copias, conservará el contenido. Si alguien está desconectado, se le aplicará al conectarse.',
+      ],
+      confirmLabel: remove ? 'Eliminar para todos' : 'Vaciar para todos',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await app.client.wipeConversation(c.id, { remove });
+      if (remove) app.closeConversation(); else requestLoad();
+      await app.refreshConversations();
+    } catch (err) {
+      toast(errorText(err), 'error');
+    }
+  }
 
   async function deleteChat(c) {
     // SPEC §4.4 has no deleteConversation(); we feature-detect it and otherwise clear every

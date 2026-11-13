@@ -541,7 +541,7 @@ call** (§5.4), so each envelope travels in its own HTTP request with its own Po
 
 ### 4.4 client.js: `SombraClient`, the only API the UI uses (v2)
 ```js
-export const MAX_FILE_BYTES = 8 * 1024 * 1024
+export const MAX_FILE_BYTES = 100 * 1024 * 1024
 export class SombraClient extends EventTarget {
   constructor({ serverUrl, backend, kdfIterations /*tests*/, fetch, WebSocket, now /*tests*/, privacy })
   static async hasAccount(backend) -> boolean
@@ -555,7 +555,7 @@ export class SombraClient extends EventTarget {
   async startDirect(username) -> convId           // throws Error('user_not_found: <u>') | Error('cannot_message_self')
   async deleteConversation(convId)                // local only
   async sendText(convId, text) -> message         // ≤ 65 536 chars
-  async sendFile(convId, { name, mime, bytes })   // ≤ 8 MiB; > 3 MiB is chunked (§5.2)
+  async sendFile(convId, { name, mime, bytes })   // ≤ 100 MiB; > 3 MiB is chunked (§5.2)
   async markRead(convId)                          // queues E2E read receipts (delayed, §5.2)
   async deleteMessages(convId, ids, forEveryone)
   async setTimer(convId, seconds)                 // disappearing messages, 0 = off, ≤ 365 d

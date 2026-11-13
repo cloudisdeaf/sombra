@@ -1,7 +1,7 @@
 // Sombra UI — pure formatting helpers (no DOM). Safe to import from Node for tests.
 
 export const USERNAME_RE = /^[a-z0-9_]{3,32}$/;
-export const MAX_FILE_BYTES = 8 * 1024 * 1024; // SPEC §4.4: sendFile ≤ 8 MiB
+export const MAX_FILE_BYTES = 100 * 1024 * 1024; // keep equal to the core limit
 export const MAX_TEXT_CHARS = 20000;
 export const MIN_PASSPHRASE = 10;
 export const AVATAR_COLORS = 8;
